@@ -1,0 +1,1074 @@
+openapi: 3.0.3
+info:
+  title: OMS API (Catering & Beauty) - Fixed
+  version: "1.0.0"
+  description: API for OMS.com (merchants, employees, orders, payments, reservations)
+
+servers:
+  - url: https://OMS.com/v1
+
+security:
+  - BearerAuth: []
+
+paths:
+  /auth/login:
+    post:
+      tags:
+        - auth
+      summary: Login and obtain access token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Access token issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /auth/refresh:
+    post:
+      tags:
+        - auth
+      summary: Refresh access token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: New access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /merchants:
+    post:
+      tags:
+        - merchants
+      summary: Create merchant (signup)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MerchantCreate'
+      responses:
+        '201':
+          description: Merchant created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MerchantResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /merchants/{merchantId}:
+    get:
+      tags:
+        - merchants
+      summary: Get merchant by id
+      parameters:
+        - name: merchantId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Merchant found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MerchantResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /merchants/{merchantId}/employees:
+    post:
+      tags:
+        - employees
+      summary: Create employee for merchant
+      parameters:
+        - name: merchantId
+          in: path
+          required: true
+          schema:
+            type: string
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmployeeCreate'
+      responses:
+        '201':
+          description: Employee created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmployeeResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /merchants/{merchantId}/orders:
+    post:
+      tags:
+        - orders
+      summary: Create order (OPEN)
+      parameters:
+        - name: merchantId
+          in: path
+          required: true
+          schema:
+            type: string
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderCreate'
+      responses:
+        '201':
+          description: Order created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+  /merchants/{merchant_ID}/orders/{order_ID}:
+    put:
+      tags:
+        - orders
+      summary: Modify an existing OPEN order
+      description: |
+        Only orders with status OPEN can be modified. 
+        This endpoint allows updating existing order items (change quantity, price overrides)
+        and modifying services already added to the order.
+      parameters:
+        - name: merchant_ID
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: order_ID
+          in: path
+          required: true
+          schema:
+            type: string
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderUpdateRequest'
+      responses:
+        '200':
+          description: Order successfully updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Order cannot be modified (e.g., CLOSED or REFUNDED)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+  /merchants/{merchantId}/orders/{orderId}/payments:
+    post:
+      tags:
+        - payments
+      summary: Create payment (split payments, tips)
+      parameters:
+        - name: merchantId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentCreate'
+      responses:
+        '200':
+          $ref: '#/components/responses/PaymentPartial'
+        '201':
+          $ref: '#/components/responses/PaymentComplete'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+
+  /merchants/{merchantId}/reservations:
+    get:
+      tags:
+        - reservations
+      summary: Check reservations
+      parameters:
+        - name: merchantId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: employee_id
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [BOOKED, CANCELLED, COMPLETED]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Reservations list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ReservationResponse'
+        '204':
+          $ref: '#/components/responses/NoContent'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+    post:
+      tags:
+        - reservations
+      summary: Create reservation
+      parameters:
+        - name: merchantId
+          in: path
+          required: true
+          schema:
+            type: string
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReservationCreate'
+      responses:
+        '201':
+          description: Reservation created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+  /merchants/{merchant_ID}/services/{service_ID}:
+    put:
+      tags:
+      - services
+      summary: Update an existing service in the catalog
+      parameters:
+      - name: merchant_ID
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: service_ID
+        in: path
+        required: true
+        schema:
+          type: string
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServiceUpdate'
+      responses:
+        '200':
+          description: Service updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+          
+  /merchants/{merchantId}/products:
+    post:
+      tags:
+        - products
+      summary: Create a new product in the merchant catalog
+      parameters:
+        - name: merchantId
+          in: path
+          required: true
+          schema:
+            type: string
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductCreate'
+      responses:
+        '201':
+          description: Product created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+# -------------------------------
+# Create a new service
+# -------------------------------
+  /merchants/{merchantId}/services:
+    post:
+      tags:
+        - services
+      summary: Create a new service offered by the merchant
+      parameters:
+        - name: merchantId
+          in: path
+          required: true
+          schema:
+            type: string
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServiceCreate'
+      responses:
+        '201':
+          description: Service created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    BadRequest:
+      description: Bad request / malformed payload
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: INVALID_PAYLOAD
+            message: Missing required fields or invalid JSON
+            status: 400
+    Unauthorized:
+      description: Missing or invalid authentication
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: UNAUTHORIZED
+            message: Missing or invalid Authorization header
+            status: 401
+    Forbidden:
+      description: Authenticated but not allowed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: FORBIDDEN
+            message: You do not have permission to perform this action
+            status: 403
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: NOT_FOUND
+            message: Resource not found
+            status: 404
+    Conflict:
+      description: Conflict (duplicate or business rule)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: CONFLICT
+            message: Resource conflict
+            status: 409
+    UnprocessableEntity:
+      description: data format is incorrect
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: INCORRECT_DATA
+            message: Data format cannot be processed
+            status: 422
+    TooManyRequests:
+      description: Rate limit exceeded
+      headers:
+        Retry-After:
+          description: Seconds to wait
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: RATE_LIMIT_EXCEEDED
+            message: Too many requests
+            status: 429
+    PaymentRequired:
+      description: Payment provider error (card declined)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: CARD_DECLINED
+            message: Card was declined
+            status: 402
+    NoContent:
+      description: No content / empty list
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                type: array
+                items: {}
+
+    PaymentPartial:
+      description: Partial payment applied
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                type: object
+                properties:
+                  paymentId: { type: string }
+                  orderId: { type: string }
+                  method: { type: string }
+                  amount: { type: number }
+                  orderBalance: { type: number }
+
+    PaymentComplete:
+      description: Payment completed and order closed
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                type: object
+                properties:
+                  paymentId: { type: string }
+                  orderId: { type: string }
+                  orderStatus: { type: string }
+                  closedAt: { type: string }
+
+  schemas:
+    # ====================
+    # USER / AUTH SCHEMAS
+    # ====================
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: "employee@bar.com"
+        password:
+          type: string
+          format: password
+          example: "MyStrongPass123!"
+
+    LoginResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+          description: JWT access token
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        token_type:
+          type: string
+          example: "Bearer"
+        expires_in:
+          type: integer
+          example: 3600
+
+    RefreshRequest:
+      type: object
+      required:
+        - refreshToken
+      properties:
+        refreshToken:
+          type: string
+          example: "rft_eyJ..."
+
+    RefreshResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            accessToken: { type: string }
+            expiresIn: { type: integer }
+
+    EmployeeCreate:
+      type: object
+      required:
+        - email
+        - role
+        - name
+        - password
+      properties:
+        email:
+          type: string
+          example: "new.employee@bar.com"
+          format: email
+        name:
+          type: string
+          example: "John Barber"
+        role:
+          type: string
+          enum:
+            - EMPLOYEE
+            - MANAGER
+            - OWNER
+        password:
+          type: string
+          format: password
+
+    EmployeeResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "e-1"
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        role:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    # ====================
+    # MERCHANT / BUSINESS
+    # ====================
+    MerchantCreate:
+      type: object
+      required:
+        - business_type
+        - email
+        - password
+      properties:
+        name:
+          type: string
+          example: "pliusai"
+        business_type:
+          type: string
+          example: "bar"
+        address:
+          type: string
+          example: "123 Main Street"
+        city:
+          type: string
+          example: "Vilnius"
+        country:
+          type: string
+          example: "Lithuania"
+        email:
+          type: string
+          format: email
+          example: "owner@pliusai.com"
+        phone:
+          type: string
+          example: "+358401234567"
+        password:
+          type: string
+          example: "$2b$10$FqJvH3r9w..."
+    OrderUpdateRequest:
+      type: object
+      description: Modify an existing order; only include lines you want to change.
+      properties:
+        items:
+          type: array
+          description: "Existing order items to update (quantity or price changes)"
+          items:
+            $ref: '#/components/schemas/OrderItemUpdate'
+        services:
+          type: array
+          description: "Existing services to update (appointment time or employee changes)"
+          items:
+            $ref: '#/components/schemas/OrderServiceUpdate'
+    OrderItemUpdate:
+      type: object
+      required:
+        - product_id
+      properties:
+        product_id:
+          type: string
+        quantity:
+          type: integer
+          example: 3
+        unit_price:
+          type: number
+          format: float
+          example: 4.50
+    OrderServiceUpdate:
+      type: object
+      required:
+        - service_id
+      properties:
+        service_id:
+          type: string
+        employee_id:
+          type: string
+        appointment_start:
+          type: string
+          format: date-time
+          example: "2025-11-01T14:30:00Z"
+        duration_minutes:
+          type: integer
+          example: 45
+        notes:
+          type: string
+          example: "Customer requested later time"
+    MerchantResponse:
+      type: object
+      properties:
+        merchant_id:
+          type: string
+          example: "M-1"
+        name:
+          type: string
+        business_type:
+          type: string
+        address:
+          type: string
+        city:
+          type: string
+        country:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    # ====================
+    # ORDER SCHEMAS
+    # ====================
+    OrderItem:
+      type: object
+      required:
+        - product_id
+        - quantity
+      properties:
+        product_id:
+          type: string
+          example: "p-3"
+        name:
+          type: string
+          example: "Latte (Oat Milk)"
+        quantity:
+          type: integer
+          example: 2
+        unit_price:
+          type: number
+          format: float
+          example: 3.50
+        tax_rate:
+          type: number
+          example: 0.24
+        discount:
+          type: number
+          example: 0.5
+
+    OrderCreate:
+      type: object
+      required:
+        - merchant_id
+        - employee_id
+        - items
+      properties:
+        merchant_id:
+          type: string
+          example: "m-1"
+        employee_id:
+          type: string
+          example: "e-5"
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderItem'
+        tip_amount:
+          type: number
+          example: 1.5
+        discount_code:
+          type: string
+          example: "HAPPYHOUR10"
+
+    OrderResponse:
+      type: object
+      properties:
+        order_id:
+          type: string
+          example: "o-8"
+        merchant_id:
+          type: string
+        employee_id:
+          type: string
+        status:
+          type: string
+          enum:
+            - OPEN
+            - CLOSED
+            - CANCELLED
+            - REFUNDED
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderItem'
+        subtotal:
+          type: number
+          example: 12.00
+        tax_total:
+          type: number
+          example: 2.88
+        tip_amount:
+          type: number
+          example: 1.5
+        total:
+          type: number
+          example: 16.38
+        created_at:
+          type: string
+          format: date-time
+
+    # ====================
+    # PAYMENT
+    # ====================
+    PaymentCreate:
+      type: object
+      required:
+        - method
+        - amount
+      properties:
+        method:
+          type: string
+          enum:
+            - cash
+            - card
+            - gift_card
+        amount:
+          type: number
+          format: float
+          example: 12.00
+        payment_intent_id:
+          type: string
+          description: Stripe payment intent (for card payments)
+          example: "pi_3Nq2AGD6vK3..."
+
+    # ====================
+    # RESERVATION
+    # ====================
+    ReservationCreate:
+      type: object
+      required:
+        - customer_name
+        - service_id
+        - employee_id
+        - appointment_time
+      properties:
+        customer_name:
+          type: string
+          example: "Emily Carter"
+        customer_contact:
+          type: string
+          example: "+358401234567"
+        service_id:
+          type: string
+          example: "svc-haircut"
+        employee_id:
+          type: string
+          example: "e-2"
+        appointment_time:
+          type: string
+          format: date-time
+          example: "2025-10-14T14:30:00Z"
+        notes:
+          type: string
+          example: "Prefers quiet appointment"
+          
+    ServiceResponse:
+      type: object
+      properties:
+        service_id:
+          type: string
+          example: "s-1"
+        name:
+          type: string
+          example: "haircut"
+        employee_id:
+          type: string
+        price:
+          type: number
+          format: float
+        duration_minutes:
+          type: integer
+        description:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+          
+    ReservationResponse:
+      type: object
+      properties:
+        reservation_id:
+          type: string
+        customer_name:
+          type: string
+        employee_id:
+          type: string
+        service_id:
+          type: string
+        appointment_time:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum:
+            - BOOKED
+            - CANCELLED
+            - COMPLETED
+    ServiceUpdate:
+      type: object
+      description: Update fields for an existing service. Include only fields you want to modify.
+      properties:
+        name:
+          type: string
+          example: "Men's Haircut Deluxe"
+        employee_id:
+          type: string
+          example: "e-2"
+        price:
+          type: number
+          format: float
+          example: 30.0
+        duration_minutes:
+          type: integer
+          example: 60
+        description:
+          type: string
+          example: "Deluxe haircut including wash and styling"
+          
+    ProductCreate:
+      type: object
+      required:
+        - name
+        - price
+      properties:
+        name:
+          type: string
+          example: "Cappuccino (Large)"
+        price:
+          type: number
+          format: float
+          example: 4.50
+        description:
+          type: string
+          example: "Large cappuccino with oat milk"
+        tax_rate:
+          type: number
+          example: 0.24
+        variations:
+          type: object
+          additionalProperties:
+            type: string
+          description: "Optional variations (e.g., Size: Large/Medium/Small)"
+
+    ProductResponse:
+      type: object
+      properties:
+        product_id:
+          type: string
+          example: "p-2"
+        name:
+          type: string
+        price:
+          type: number
+        description:
+          type: string
+        tax_rate:
+          type: number
+        variations:
+          type: object
+        created_at:
+          type: string
+          format: date-time
+
+    ServiceCreate:
+      type: object
+      required:
+        - name
+        - employee_id
+      properties:
+        name:
+          type: string
+          example: "Men's Haircut"
+        employee_id:
+          type: string
+          example: "e-22"
+        price:
+          type: number
+          format: float
+          example: 25.0
+        duration_minutes:
+          type: integer
+          example: 45
+        description:
+          type: string
+          example: "Classic men's haircut with styling"
+
+    # ====================
+    # ERROR HANDLING
+    # ====================
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+          example: "ORDER_NOT_FOUND"
+        message:
+          type: string
+          example: "The requested order could not be found."
+        status:
+          type: integer
+          example: 404
+        timestamp:
+          type: string
+          format: date-time
+          example: "2025-10-14T08:30:00Z"
